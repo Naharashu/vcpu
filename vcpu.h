@@ -7,7 +7,7 @@
 #include <string.h>
 
 #define ARC "x32"
-#define VPROC_NAME "N100"
+#define VPROC_NAME "N120"
 #define VPROC_COMP "Nowa Co."
 #define CORES 1
 
@@ -15,6 +15,7 @@ typedef struct {
     int32_t* memory;
     uint32_t pc;
     int32_t reg[16];
+    int16_t stack[256];
 } VCPU;
 
 extern VCPU vcpu;

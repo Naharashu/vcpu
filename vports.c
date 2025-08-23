@@ -29,6 +29,10 @@ void init_ports() {
 }
 
 int read_port_std(int port_number, unsigned char address) {
+    if(ports[STATUS_PORT].data[0] == 0x02) {
+        fprintf(stderr, "Port status error.\n");
+        return -1;
+    }
     if(port_number < 0 || port_number >= 4) {
         fprintf(stderr, "Invalid port number: %d\n", port_number);
         ports[STATUS_PORT].data[0] = 0x02;
@@ -43,6 +47,10 @@ int read_port_std(int port_number, unsigned char address) {
 }
 
 void write_port_std(int port_number, unsigned char address, int value) {
+    if(ports[STATUS_PORT].data[0] == 0x02) {
+        fprintf(stderr, "Port status error.\n");
+        return;
+    }
     if(port_number < 0 || port_number >= 4) {
         fprintf(stderr, "Invalid port number: %d\n", port_number);
         ports[STATUS_PORT].data[0] = 0x02;

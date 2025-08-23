@@ -4,6 +4,9 @@
 
 VCPU vcpu;
 
+uint8_t ZF = 0;
+uint8_t IDF = 0;
+
 void init_vcpu() {
 	vcpu.memory = calloc(16384, sizeof(int32_t));
 	vcpu.pc = 0;
@@ -12,11 +15,12 @@ void init_vcpu() {
 
 int parse(char input[]) {
     if (input == NULL) {
-        fprintf(stderr, "Помилка: вхідний рядок є NULL\n");
-        return -1;
+		vcpu.memory[0] = 0x00;
+		vcpu.memory[1] = 0xFF;
+		return 1;
     }
 
-    char input_copy[256];
+    char input_copy[512];
     strncpy(input_copy, input, sizeof(input_copy) - 1);
     input_copy[sizeof(input_copy) - 1] = '\0';
 
@@ -41,6 +45,10 @@ void execute() {
 		#ifdef SAFE_MODE
 			if(read_port_std(STATUS_PORT, 0) == 0x02) {
 				fprintf(stderr, "Execution halted due to port status error.\n");
+				return;
+			}
+			if(vcpu.pc >= 16384) {
+				fprintf(stderr, "Program counter out of bounds: %d\n", vcpu.pc);
 				return;
 			}
 		#endif
@@ -132,7 +140,83 @@ void execute() {
 			}
 			case 0x0F: {
 				uint8_t addr = FETCH;
-				printf("%c", read_port_std(OUTPUT_PORT, addr));
+				printf("%d", read_port_std(OUTPUT_PORT, addr));
+				goto next;
+			}
+			case 0x10: {
+				uint8_t port = FETCH;
+				uint8_t addr = FETCH;
+				int value = FETCH;
+				write_port_std(port, addr, value);
+				goto next;
+			}
+			case 0x11: {
+				uint8_t port = FETCH;
+				uint8_t addr = FETCH;
+				int r = FETCH;
+				vcpu.reg[r] = read_port_std(port, addr);
+				goto next;
+			}
+			case 0x12: {
+				uint8_t r = FETCH;
+				uint8_t r2 = FETCH;
+				ZF = (vcpu.reg[r] == 0);
+				IDF = (vcpu.reg[r] == vcpu.reg[r2]);
+				goto next;
+			}
+			case 0x13: {
+				uint32_t addr = FETCH;
+				#ifdef SAFE_MODE
+					if(addr >= 16384) {
+						fprintf(stderr, "Address out of bounds: %d\n", addr);
+						return;
+					}
+				#endif
+				vcpu.pc = addr;
+				goto next;
+			}
+			case 0x14: {
+				uint32_t addr = FETCH;
+				#ifdef SAFE_MODE
+					if(addr >= 16384) {
+						fprintf(stderr, "Address out of bounds: %d\n", addr);
+						return;
+					}
+				#endif
+				if(ZF) vcpu.pc = addr;
+				goto next;
+			}
+			case 0x15: {
+				uint32_t addr = FETCH;
+				#ifdef SAFE_MODE
+					if(addr >= 16384) {
+						fprintf(stderr, "Address out of bounds: %d\n", addr);
+						return;
+					}
+				#endif
+				if(!ZF) vcpu.pc = addr;
+				goto next;
+			}
+			case 0x16: {
+				uint32_t addr = FETCH;
+				#ifdef SAFE_MODE
+					if(addr >= 16384) {
+						fprintf(stderr, "Address out of bounds: %d\n", addr);
+						return;
+					}
+				#endif
+				if(IDF) vcpu.pc = addr;
+				goto next;
+			}
+			case 0x17: {
+				uint32_t addr = FETCH;
+				#ifdef SAFE_MODE
+					if(addr >= 16384) {
+						fprintf(stderr, "Address out of bounds: %d\n", addr);
+						return;
+					}
+				#endif
+				if(!IDF) vcpu.pc = addr;
 				goto next;
 			}
 			case 0xFF:
@@ -172,12 +256,16 @@ int main(int argc, char *argv[]) {
 		init_vcpu();
 		parse(argv[2]);
 		execute();
+		free(vcpu.memory);
+		free_ram();
 		return 0;
 	}
 	if(strcmp(argv[1], "compile") == 0) {
 		init_vcpu();
 		vcpu.pc = parse(argv[2]);
 		compile();
+		free(vcpu.memory);
+		free_ram();
 		return 0;
 	}
 	if(strcmp(argv[1], "execute") == 0) {
@@ -191,6 +279,8 @@ int main(int argc, char *argv[]) {
 		vcpu.pc = 0;
 		execute();
 		fclose(f);
+		free(vcpu.memory);
+		free_ram();
 		return 0;
 	}
 	init_vcpu();

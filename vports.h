@@ -23,6 +23,7 @@ typedef struct port_t {
 } port_t;
 
 
+
 extern port_t ports[4];
 
 void init_ports();
